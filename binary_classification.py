@@ -33,7 +33,7 @@ class One_versus_one:
         self.X0 = np.concatenate((class1, class2),axis=0)
         self.X0[:,0] = np.ones(sum(self.K0))
         self.X0 = matrix_standardize(self.X0)
-        
+       
     def __str__(self):
         print(pd.DataFrame(self.X0))
         print("K0:",self.K0)
