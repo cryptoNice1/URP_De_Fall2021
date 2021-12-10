@@ -49,11 +49,7 @@ class One_Versus_All:
         """Initializes the 2 classes from the given class and the others
         
         Input:      df  - a pandas dataframe representation of the data
-                    c1  - the class number of interest
-        Variables:  K0  - list of number of observations in c1 and c2
-                    X0  - the new matrix of just the two classes
-                    lab - array of just the data labels
-                    K   - 5, the original number of classes"""
+                    c1  - the class number of interest"""
     
         self.K = 5
         
