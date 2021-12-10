@@ -24,19 +24,22 @@ def separate_data(X,y,i):
     
     return Xtrain,Ytrain, X[i], y[i]
 
-def PLS_OHE(data,h):
+def PLS_OHE(data,h,all_info):
     """Applies one hot encoding PLS on the dataset
     
-    Input:  data - the dataset class (contains dataset, labels, number of 
+    Input:  data     - the dataset class (contains dataset, labels, number of 
                                       classes, and length of each class)
-            h    - the number of iterations that should be taken
-    Output: CM   - confusion matrix of the dataset
+            h        - the number of iterations that should be taken
+            all_info - False if only confusion matrix is returned, True if other
+                        information is also given.
+    Output: CM       - confusion matrix of the dataset
     """
     
     """Setting variables"""
     dataset = data.X0
     n,m = dataset.shape[0], dataset.shape[1]
     k = data.K
+    K0 = data.K0
     
     """Setting labels"""
     labels = [] #change data labels into 0s and 1s
@@ -47,6 +50,7 @@ def PLS_OHE(data,h):
     Ktrain = np.zeros(k) #the number of observations in each training data class 
     CM = np.zeros((k,k)) #confusion matrix
     R = np.zeros((m,k)) #PLS model coefficients
+    Ypred = np.zeros((n,k)) #difference between real y and predicted y
     ypred = np.zeros(n) #predicted y values
     
     for i in range(n):
@@ -59,20 +63,72 @@ def PLS_OHE(data,h):
         """Nb and Ne are to change the class values into 0 and 1"""
         Nb = 0          #beginning
         Ne = Ktrain[0]  #end
-        
         """Determining the PLS model coefficients"""
-        for j in range(k):
+        for j in range(1,k+1):
             y = np.zeros(sum(Ktrain))
-            y[Nb:Ne] = 1
-            if j < k-1:
-                Nb += Ktrain[j]
-                Ne += Ktrain[j+1]
-            R[:,j] = PLS1(Xtrain,y,h)
-        
+            y[Nb:Ne] = 1.
+            if j < k:
+                Nb += Ktrain[j-1]
+                Ne += Ktrain[j]
+            R[:,j-1] = PLS1(Xtrain,y,h)
         z = xtest @ R
         zsum = np.sum(e**z)
         zsoftmax = e**z / zsum
+        Ypred[i] = zsoftmax
         y_hat = np.where(zsoftmax == max(zsoftmax))[0][0]
         ypred[i] = y_hat
         CM[ytest-1,y_hat] += 1
-    return CM
+        
+    if not all_info:
+        return CM
+    
+    """Finding ROC curve"""
+    c = 0 #c is a counter
+    num_divisions = 1000
+    threshold_values = np.linspace(0,1,num_divisions)
+    TPR = np.zeros((num_divisions,k)) #true positive rate, same as sensitivity
+    FPR = np.zeros_like(TPR) #false positive rate, same as 1 - specificity
+    ACC = np.zeros_like(TPR) #accuracy
+    
+    """Iterating through threshold values"""
+    for threshold in threshold_values:
+        start = 0
+        finish = K0[0]+1
+        for i in range(k):
+            """Finding the true classes and predicted classes"""
+            classes = np.zeros(n) #true classes
+            classes[start:finish] = 1
+            results = np.zeros(n) #predicted classes
+            
+            """Assigning positives and negatives"""
+            for j in range(n):
+                if Ypred[j,i] >= threshold:
+                    results[j] = 1
+            positives = classes[start:finish] - results[start:finish]
+            
+            if i == 0:
+                negatives = classes[finish+1:] - results[finish+1:]
+            elif i == k-1:
+                negatives = classes[:start] - results[:start]
+            else:
+                classes = np.concatenate((classes[:start],classes[finish+1:]))
+                results = np.concatenate((results[:start],results[finish+1:]))
+                negatives = classes- results
+            
+            """Determining binary statistics"""
+            TP = (positives == 0).sum()
+            FN = (positives != 0).sum()
+            TN = (negatives == 0).sum()
+            FP = (negatives != 0).sum()
+            TPR[c,i] = TP / (TP + FN)
+            FPR[c,i] = 1 - TN / (TN + FP)
+            ACC[c,i] = ( TP + TN ) / ( TP + FN + TN + FP )
+            
+            """Iterating through each of the classes"""
+            if i < k-1:
+                start += int(K0[i])
+                finish += int(K0[i+1])
+        c+=1 
+
+    return TPR, FPR, ACC
+    
