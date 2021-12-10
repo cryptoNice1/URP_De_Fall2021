@@ -10,6 +10,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+def standard_deviation(array,mean):
+    """Calculates sample standard deviation"""
+    total = 0
+    n = array.size
+    for i in range(n):
+        total+=(array[i] - mean)**2
+    return (total/(n-1))**0.5
+
 def matrix_standardize(X):
     """Standardizes a data set
     
@@ -19,13 +27,15 @@ def matrix_standardize(X):
     Standardizing a variable means centering it around 0 with standard 
     deviation = 1. For a variable m, standardized m = (m-mean(m))/stv(m)
     """
+    new_matrix = np.ones((X.shape[0],X.shape[1])).T
     X = X.T
     m = X.shape[0]
     for i in range(1,m):
         x_mean = np.average(X[i])
-        stv = np.std(X[i])
-        X[i] = (X[i] - x_mean)/stv
-    return X.T
+        stv = standard_deviation(X[i],x_mean)
+        X[i] = (X[i] - x_mean)
+        new_matrix[i] = X[i]/stv
+    return new_matrix.T
 
 def PLS1(X,y,h):
     """ Computes the regression coefficients to predict y from X.
